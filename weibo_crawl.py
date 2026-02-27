@@ -74,7 +74,8 @@ def main():
     all_posts = []  # 存储所有符合条件的微博（包含博主信息、时间、内容）
     
     for uid in BLOGGER_UIDS:
-        print(f"\n正在爬取博主 {uid} 的微博...")
+        user = client.get_user_by_uid(uid)
+        print(f"\n正在爬取博主 {uid}: {user.screen_name} 的微博...")
         page = 1
         continue_next_page = True
         while continue_next_page:
@@ -90,9 +91,11 @@ def main():
                 for p in recent:
                     all_posts.append({
                         'uid': uid,
+                        'username': user.screen_name,
                         'time': p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else "未知",
                         'text': p.text
                     })
+                now_utc_ts = datetime.now(timezone.utc).timestamp()
                 yesterday_utc_ts = now_utc_ts - 24 * 3600
                 # 如果这一页的微博全部早于24小时，则停止翻页
                 if len(posts) > 0 and posts[-1].created_at.timestamp() < yesterday_utc_ts:
@@ -129,7 +132,7 @@ def main():
         # 按时间倒序排列
         all_posts_sorted = sorted(all_posts, key=lambda x: x['time'], reverse=True)
         for i, post in enumerate(all_posts_sorted, 1):
-            f.write(f"\n{i}. [{post['time']}] 博主 {post['uid']}\n")
+            f.write(f"\n{i}. [{post['time']}] 博主 {post['uid']} {post['username']}\n")
             f.write(f"   {post['text']}\n")
     
     print(f"\n结果已保存至 {OUTPUT_FILE}")
