@@ -7,7 +7,7 @@
 import os
 import time
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from crawl4weibo import WeiboClient
 
 # ==================== 配置区 ====================
@@ -15,15 +15,27 @@ from crawl4weibo import WeiboClient
 # 获取方式：打开博主主页，URL中的数字部分，例如 https://weibo.com/u/1234567890 的UID为1234567890
 BLOGGER_UIDS = [
     "2031030981",   # 示例：替换为真实的博主UID
-    "2345678901",
-    "3456789012",
+    "2014433131",
+    "7544904057",
+    "1648195723",
+    "2600338914",
+    "1098173713",
+    "5647310207",
+    "7558294027",
+    "1905240827",
+    "2453509265",
+    "2216334181",
+    "7960759490",
+    "5140428384",
+    "3317427737",
+    "7820112672",
 ]
 
 # 停用词文件路径（可选，用于过滤无意义词汇）
-STOPWORDS_FILE = "stopwords.txt"   # 如果不需要，可设为None
+STOPWORDS_FILE = "./input/stopwords.txt"   # 如果不需要，可设为None
 
 # 输出文件
-OUTPUT_FILE = "hotspots.txt"
+OUTPUT_FILE = "./output/hotspots.txt"
 
 # 每页微博数量（crawl4weibo默认每页10条，可根据需要调整分页）
 PAGE_SIZE = 10
@@ -38,19 +50,19 @@ def load_stopwords(filepath):
 
 def filter_24h_posts(posts):
     """筛选过去24小时发布的微博"""
-    now = datetime.now()
-    yesterday = now - timedelta(days=1)
+    now_utc_ts = datetime.now(timezone.utc).timestamp()
+    yesterday_utc_ts = now_utc_ts - 24 * 3600
     filtered = []
     for post in posts:
         # post.created_at 可能是字符串，需要解析；也可能是datetime对象
         # crawl4weibo返回的post.created_at 应该是 datetime 对象
-        if post.created_at and post.created_at >= yesterday:
+        if post.created_at and post.created_at.timestamp() >= yesterday_utc_ts:
             filtered.append(post)
     return filtered
 
 def main():
     print("=" * 50)
-    print("微博热点爬虫启动")
+    print("微博关注爬虫启动")
     print("=" * 50)
 
     # 初始化客户端（自动处理Cookie和反爬）
@@ -68,7 +80,7 @@ def main():
         while continue_next_page:
             try:
                 # 获取一页微博
-                posts = client.get_user_posts(uid, page=page)
+                posts = client.get_user_posts(uid, page=page, expand=True)
                 if not posts:
                     print(f"  博主 {uid} 第 {page} 页无数据，停止翻页")
                     break
@@ -81,9 +93,9 @@ def main():
                         'time': p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else "未知",
                         'text': p.text
                     })
-                
+                yesterday_utc_ts = now_utc_ts - 24 * 3600
                 # 如果这一页的微博全部早于24小时，则停止翻页
-                if len(posts) > 0 and posts[-1].created_at < (datetime.now() - timedelta(days=1)):
+                if len(posts) > 0 and posts[-1].created_at.timestamp() < yesterday_utc_ts:
                     continue_next_page = False
                     print(f"  已获取到足够早的微博，停止翻页")
                 else:
